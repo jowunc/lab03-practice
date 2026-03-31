@@ -399,19 +399,18 @@ int first_fit( unsigned int length ) {
 
 int next_fit( int start_frame, unsigned int length ) {
 
-    if (length == 0 || length > memmap.size){
+    
+    if (length == 0 || length > memmap.size) {
         return FRAME_ERROR;
     }
 
     int cur_len = 0;
     int start = -1;
     int count = 0;
-
     int i = (start_frame >= 0) ? start_frame : 0;
 
-    while (count < memmap.size){
+    while (count < memmap.size) {
         simulator.num_probes += 1;
-    
 
         if (memmap.frames[i] == NULL) {
             if (start == -1) {
@@ -420,8 +419,8 @@ int next_fit( int start_frame, unsigned int length ) {
 
             cur_len++;
 
-            if (cur_len >= length) {
-                memmap.last_placement_frame = start;
+            if (cur_len >= (int)length) {
+                memmap.last_placement_frame = i;
                 return start;
             }
         } else {
@@ -436,10 +435,12 @@ int next_fit( int start_frame, unsigned int length ) {
             start = -1;
             cur_len = 0;
         }
-
     }
 
-  return FRAME_ERROR; // temporary placeholder.
+    return FRAME_ERROR;
+
+
+
 
 } // end next_fit() function
 
