@@ -1,3 +1,6 @@
+// I pledge the COMP530 honor code.
+
+
 // -----------------------------------
 //  COMP 530: Operating Systems
 //
