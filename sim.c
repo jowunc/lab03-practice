@@ -189,16 +189,73 @@ void show_pointer_table() {
 
 pointer_t* s_malloc( unsigned int size, unsigned int duration ) {
 
+    pointer_t* p = NULL;
+
+    int pfn = allocate(size);
+
+    if (pfn == FRAME_ERROR) {
+        simulator.frame_error += 1;
+        return NULL;
+    }
+
+    int vpn = map(size);
+
+    if (vpn == PAGE_ERROR){
+        simulator.page_error += 1;
+        unallocate(pfn, size);
+        return NULL; 
+    }
+
+    p = (pointer_t*)malloc(sizeof(pointer_t));
+
+    if (p == NULL){
+        unallocate(pfn, size);
+        unmap(vpn, size);
+        return NULL;
+    }
+    
+    for (unsigned int i = 0; i < size; i++){
+        if (pfn + i < memmap.size && vpn + i < mm_struct.num_pages) {
+            mm_struct.page_table[vpn + i]->present = 1;
+            mm_struct.page_table[vpn + i]->pfn = pfn + i;
+            memmap.frames[pfn + i] = mm_struct.page_table[vpn + i];
+    
+        }
+    }
+
+    p->size = size;
+    p->vpn = vpn;
+    p->duration = duration;
+
+
+    return p;
+
+
+
   // TODO: COMPLETE YOUR CODE HERE.
-
-
-  return NULL; // temporary placeholder.
+  
+ // temporary placeholder.
 
 } // end s_malloc() function
 
 
 void s_free( pointer_t* p ) {
 
+
+
+    if (p == NULL){
+        return;
+    }
+
+    unsigned int vpn = p->vpn;
+    unsigned int size = p->size;
+    unsigned int pfn = mm_struct.page_table[vpn]->pfn;
+
+
+    unallocate(pfn, size);
+    unmap(vpn, size);
+
+    //free(p);
   // TODO: COMPLETE YOUR CODE HERE.
 
 
@@ -206,12 +263,24 @@ void s_free( pointer_t* p ) {
 } // end s_free() function
 
 int allocate( unsigned int size ) {
+    
+    int pfn = FRAME_ERROR;
+
+    if (simulator.placement_algorithm == FIRST){
+        pfn = first_fit(size);
+    } else if (simulator.placement_algorithm == BEST) {
+        pfn = best_fit(size);
+    } else if (simulator.placement_algorithm == NEXT){
+        pfn = next_fit(memmap.last_placement_frame, size);
+    }
+
+
 
   // TODO: COMPLETE YOUR CODE HERE.
 
+    return pfn;
 
-
-  return FRAME_ERROR; // temporary placeholder.
+   // temporary placeholder.
 
 
 } // end allocate() function
@@ -219,7 +288,13 @@ int allocate( unsigned int size ) {
 
 void unallocate( unsigned int pfn, unsigned int size ) {
 
-  // TODO: COMPLETE YOUR CODE HERE.
+    for (unsigned int i = 0; i < size; i++){
+        if (pfn + i < memmap.size){
+            memmap.frames[pfn + i] = NULL;
+        }
+    }
+    
+    // TODO: COMPLETE YOUR CODE HERE.
 
 
 
@@ -227,6 +302,33 @@ void unallocate( unsigned int pfn, unsigned int size ) {
 
 
 int map( unsigned int length) {
+
+
+
+    if (length == 0 || length > mm_struct.num_pages) {
+        return PAGE_ERROR;
+    }
+
+    int cur_len = 0;
+    int start = -1;
+
+    for (unsigned int i = 0; i < mm_struct.num_pages; i++){
+        if (mm_struct.page_table[i]->present == 0){
+            if (start == -1){
+                start = i;
+            }
+
+            cur_len++;
+
+            if (cur_len >= length){ 
+                return start;
+            }
+        } else {
+            start = -1;
+            cur_len = 0;
+        }
+
+    }
 
   // TODO: COMPLETE YOUR CODE HERE.
 
@@ -238,6 +340,16 @@ int map( unsigned int length) {
 
 void unmap( unsigned int vpn, unsigned int size ) {
 
+
+    for (unsigned int i = 0; i < size; i++){
+        if (vpn + i < mm_struct.num_pages) { 
+            mm_struct.page_table[vpn + i]->present = 0;
+            mm_struct.page_table[vpn + i]->pfn = 0;
+        }
+    }
+
+
+
   // TODO: COMPLETE YOUR CODE HERE.
 
 
@@ -246,6 +358,33 @@ void unmap( unsigned int vpn, unsigned int size ) {
 
 
 int first_fit( unsigned int length ) {
+
+
+    if (length == 0 || length > memmap.size){
+        return FRAME_ERROR;
+    }
+
+    int cur_len = 0;
+    int start = -1; 
+
+    for (unsigned int i = 0; i < memmap.size; i++){
+        simulator.num_probes += 1;
+
+        if (memmap.frames[i] == NULL){
+            if (start == -1){
+                start = i;
+            }
+            
+            cur_len++;
+
+            if (cur_len >= length){
+                return start;
+            }
+        } else {
+            start =- 1;
+            cur_len = 0; 
+        }
+    }
 
   // TODO: COMPLETE YOUR CODE HERE.
 
@@ -257,9 +396,40 @@ int first_fit( unsigned int length ) {
 
 int next_fit( int start_frame, unsigned int length ) {
 
-  // TODO: COMPLETE YOUR CODE HERE.
+    if (length == 0 || length > memmap.size){
+        return FRAME_ERROR;
+    }
 
+    int cur_len = 0;
+    int start = -1;
+    int count = 0;
 
+    int i = start_frame;
+
+    while (count < memmap.size){
+        simulator.num_probes += 1;
+    
+
+        if (memmap.frames[i] == NULL) {
+            if (start == -1) {
+                start = i;
+            }
+
+            cur_len++;
+
+            if (cur_len >= length) {
+                memmap.last_placement_frame = start;
+                return start;
+            }
+        } else {
+            start = -1;
+            cur_len = 0;
+        }
+
+        i = (i + 1) % memmap.size;
+        count++;
+
+    }
 
   return FRAME_ERROR; // temporary placeholder.
 
@@ -267,12 +437,44 @@ int next_fit( int start_frame, unsigned int length ) {
 
 
 int best_fit( unsigned int length ) {
+    
+    if (length == 0 || length > memmap.size) {
+        return FRAME_ERROR;
+    }
 
-  // TODO: COMPLETE YOUR CODE HERE.
+    int best_start = -1;
+    int best_size = memmap.size + 1;
 
- 
+    int cur_start = -1;
+    int cur_len = 0;
 
-  return FRAME_ERROR; // temporary placeholder.
+    for (unsigned int i = 0; i < memmap.size; i++) {
+        simulator.num_probes += 1;
+
+        if (memmap.frames[i] == NULL) {
+            if (cur_start == -1) {
+                cur_start = i;
+            }
+            cur_len++;
+        } else {
+            if (cur_len >= (int)length && cur_len < best_size) {
+                best_size = cur_len;
+                best_start = cur_start;
+            }
+            cur_start = -1;
+            cur_len = 0;
+        }
+    }
+
+    if (cur_len >= (int)length && cur_len < best_size) {
+        best_size = cur_len;
+        best_start = cur_start;
+    }
+
+    return (best_start == -1) ? FRAME_ERROR : best_start;
+
+
+
 
 } // end best_fit() function
 
