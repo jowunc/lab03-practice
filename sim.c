@@ -192,7 +192,7 @@ void show_pointer_table() {
 
 pointer_t* s_malloc( unsigned int size, unsigned int duration ) {
 
-pointer_t* p = NULL;
+    pointer_t* p = NULL;
 
     int pfn = allocate(size);
     int vpn = map(size);
