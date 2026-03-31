@@ -432,6 +432,11 @@ int next_fit( int start_frame, unsigned int length ) {
         i = (i + 1) % memmap.size;
         count++;
 
+        if (i == 0) {
+            start = -1;
+            cur_len = 0;
+        }
+
     }
 
   return FRAME_ERROR; // temporary placeholder.
