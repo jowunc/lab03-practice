@@ -192,44 +192,45 @@ void show_pointer_table() {
 
 pointer_t* s_malloc( unsigned int size, unsigned int duration ) {
 
-    pointer_t* p = NULL;
+pointer_t* p = NULL;
 
     int pfn = allocate(size);
+    int vpn = map(size);
 
-    if (pfn == FRAME_ERROR) {
+    if (pfn == FRAME_ERROR && vpn == PAGE_ERROR) {
         simulator.frame_error += 1;
+        simulator.page_error += 1;
         return NULL;
     }
 
-    int vpn = map(size);
+    if (pfn == FRAME_ERROR) {
+        simulator.frame_error += 1;
+        unmap(vpn, size);
+        return NULL;
+    }
 
-    if (vpn == PAGE_ERROR){
+    if (vpn == PAGE_ERROR) {
         simulator.page_error += 1;
         unallocate(pfn, size);
-        return NULL; 
+        return NULL;
     }
 
     p = (pointer_t*)malloc(sizeof(pointer_t));
-
-    if (p == NULL){
+    if (p == NULL) {
         unallocate(pfn, size);
         unmap(vpn, size);
         return NULL;
     }
-    
-    for (unsigned int i = 0; i < size; i++){
-        if (pfn + i < memmap.size && vpn + i < mm_struct.num_pages) {
-            mm_struct.page_table[vpn + i]->present = 1;
-            mm_struct.page_table[vpn + i]->pfn = pfn + i;
-            memmap.frames[pfn + i] = mm_struct.page_table[vpn + i];
-    
-        }
+
+    for (unsigned int i = 0; i < size; i++) {
+        mm_struct.page_table[vpn + i]->present = 1;
+        mm_struct.page_table[vpn + i]->pfn = pfn + i;
+        memmap.frames[pfn + i] = mm_struct.page_table[vpn + i];
     }
 
     p->size = size;
     p->vpn = vpn;
     p->duration = duration;
-
 
     return p;
 
