@@ -404,7 +404,7 @@ int next_fit( int start_frame, unsigned int length ) {
     int start = -1;
     int count = 0;
 
-    int i = start_frame;
+    int i = (start_frame >= 0) ? start_frame : 0;
 
     while (count < memmap.size){
         simulator.num_probes += 1;
@@ -418,7 +418,7 @@ int next_fit( int start_frame, unsigned int length ) {
             cur_len++;
 
             if (cur_len >= length) {
-                memmap.last_placement_frame = start;
+                memmap.last_placement_frame = i;
                 return start;
             }
         } else {
