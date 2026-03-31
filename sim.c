@@ -258,7 +258,7 @@ void s_free( pointer_t* p ) {
     unallocate(pfn, size);
     unmap(vpn, size);
 
-    //free(p);
+    free(p);
   // TODO: COMPLETE YOUR CODE HERE.
 
 
@@ -384,7 +384,7 @@ int first_fit( unsigned int length ) {
                 return start;
             }
         } else {
-            start =- 1;
+            start = -1;
             cur_len = 0; 
         }
     }
@@ -421,7 +421,7 @@ int next_fit( int start_frame, unsigned int length ) {
             cur_len++;
 
             if (cur_len >= length) {
-                memmap.last_placement_frame = i;
+                memmap.last_placement_frame = start;
                 return start;
             }
         } else {
@@ -463,6 +463,9 @@ int best_fit( unsigned int length ) {
             if (cur_len >= (int)length && cur_len < best_size) {
                 best_size = cur_len;
                 best_start = cur_start;
+                if (cur_len == (int)length){
+                    return best_start;
+                }
             }
             cur_start = -1;
             cur_len = 0;
@@ -472,6 +475,9 @@ int best_fit( unsigned int length ) {
     if (cur_len >= (int)length && cur_len < best_size) {
         best_size = cur_len;
         best_start = cur_start;
+        if (cur_len == (int)length){
+            return best_start;
+        }
     }
 
     return (best_start == -1) ? FRAME_ERROR : best_start;
